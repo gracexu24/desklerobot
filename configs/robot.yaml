@@ -1,0 +1,32 @@
+robot: 
+	type: so101_follower
+	id: rory 
+	port: /dev/tty.usbmodemXXXX
+
+teleop: 
+	type: so101_leader
+	id: lorelai
+	port: /dev/tty.usbmodemYYYY
+
+camera1:: 
+	index: 0 
+	width: 0
+	height: 0
+	port: 0 
+
+policy: 
+	type: act 
+	path: 
+
+	type: act 
+	path: 
+
+dataset: 
+	repo_id: 
+	num_episodes: 
+	task: Pick up trash and place it in the bin 
+
+	repo_id:
+	num_episodes: 
+	task: Pick up pen and place it in hand 
+  

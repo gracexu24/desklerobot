@@ -20,4 +20,4 @@ notes:
 
 7/9: 
 - tested camera detection, running policy with python, and moving the robot joints
-- issues: robot motor broke, camera is unable to detect trash on table or aruco tags, certain join positions stopped by lerobot for safety
+- issues: trained policy struggled to run (had to download locally), robot motor broke, camera is unable to detect trash on table or aruco tags, certain join positions stopped by lerobot for safety

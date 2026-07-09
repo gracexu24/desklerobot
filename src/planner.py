@@ -5,17 +5,16 @@
 #run pen picking up policy
 #always return a word not actually do the action 
 
-class DeskPlanner: 
-    def next_action(trash_exists, command, on_trash): 
-        if (command == "trash"): 
-            if (trash_exists): 
-                if (on_trash): 
-                    return "trash policy" 
-                else: 
-                    return "go to trash"
+def next_action(trash_exists, command, on_trash): 
+    if (command == "trash"): 
+        if (trash_exists): 
+            if (on_trash): 
+                return "trash policy" 
             else: 
-                return "no move"
-        # elif (command == "pen"): 
+                return "go to trash"
         else: 
             return "no move"
+    # elif (command == "pen"): 
+    else: 
+        return "no move"
             

@@ -13,7 +13,7 @@ detector = cv2.aruco.ArucoDetector(aruco_dict, aruco_params)
 camera_index = 0 
 cap = cv2.VideoCapture(camera_index)
 
-if not cap.isOpened():
+if not cap.isOpeneßd():
     raise RuntimeError(f"Could not open camera {camera_index}")
 
 while True:

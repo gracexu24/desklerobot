@@ -1,49 +1,73 @@
+
+from termios import TABDLY
+from turtle import distance
 import cv2 
+import math
 from ultralytics import YOLO 
+
+#add human detect? 
 
 # (0, 0) is the top-left corner 
 #make helper functions for detection values I need
 #load in yolo model 
-model = YOLO("yolov8n.pt")
-
-#aruco detector 
-aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
-aruco_params = cv2.aruco.DetectorParameters()
-detector = cv2.aruco.ArucoDetector(aruco_dict, aruco_params)
-
-
 
 # (0, 0) is the top-left corner 
-
 
 #create bounding boxes, grid/coordinate system 
 #detect and return location of robot head
 #detect and return number of trash items 
 #return the postion of the closest piece of trash 
 
-camera_index = 0 
+#camera_index = 0 
 
-robot_head_position = (0, 0)
-num_trash= 0 
-trash_xy = []
+#robot_head_position = (0, 0)
+#num_trash= 0 
+#trash_xy = []
 
-cap = cv2.VideoCapture(camera_index)
+#cap = cv2.VideoCapture(camera_index)
 
-if not cap.isOpened():
-    raise RuntimeError(f"Could not open camera {camera_index}")
+#helper functions 
+#return center of box, top left and bottom right corner inputted
+def center_of_box(x1,y1, x2,  y2):
+    return (((x1+x2)/2), ((y1+y2)/2))
 
-while True:
+def distance_between_points(point1, point2):
+    return math.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
 
-    #code to get camera image showing and running the whole time 
-    ret, frame = cap.read()
-    if not ret: 
-        print("failed to read camera")
-        break 
-    # Make a copy to draw on
-    display = frame.copy()
+def calc_human_distance(): 
 
-    #yolo 
-    #first tested to see what yolo detected, then used that for the trash
+#location of closest trash 
+def closest_trash(trash_list, head_position): 
+    closest = distance_between_points(trash_list[0], head_position) 
+    for trash in trash_list: 
+        dist = distance_between_points(trash,head_position)
+        if dist < closest: 
+            closest = dist 
+    return closest 
+
+
+#main detection funcstions 
+
+#return position of aruco(robot head) and draw it on display
+#only one aruconum to start
+def aruco_position(frame, display, detector, aruco_num): 
+    #make the frame grayscale 
+    head_pos = (0,0)
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)   
+    corners, ids, rejected = detector.detectMarkers(gray)
+    if ids is not None: 
+        #detect and draw on arco
+        if ids[0] == aruco_num: 
+            head_pos = center_of_box(corners[0][0][0], corners[0][0][1], corners[0][2][0], corners[0][2][1])
+            cv2.aruco.drawDetectedMarkers(display, corners, ids)
+    return head_pos
+
+
+#return a list of trash coords and draw it on display (if list returned is empty then no trash)
+#trash type hardcoded for now
+#model is yolo 
+def detect_trash(frame, display, model, trash_type): 
+    trash_positions = [] 
     results = model(frame, conf=0.5, verbose=False)
     for result in results: 
         boxes = result.boxes
@@ -53,30 +77,12 @@ while True:
             class_id = int(box.cls[0])
             confidence = float(box.conf[0])
             class_name = model.names[class_id]
-            cv2.rectangle(display, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            label = f"{class_name} {confidence:.2f}"
-            cv2.putText(
-                display,
-                label,
-                (x1, y1 - 10),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                (0, 255, 0),
-                2
-            )
-    #make the frame grayscale 
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)   
-    corners, ids, rejected = aruco_detector.detectMarkers(gray)
+            if class_name == trash_type: 
+                obj_pos = center_of_box(x1, y1, x2, y2)
+                trash_positions.append(obj_pos)
+                cv2.rectangle(display, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                label = f"{class_name} {confidence:.2f}"
+                cv2.putText(display,label,(x1, y1 - 10),cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+    return trash_positions
 
-    if ids: 
-        #detect and draw on arco
-        cv2.aruco.drawDetectedMarkers(display, corners, ids)
-   
-    cv2.imshow("yolo + camera + arUco", frame)
-    #quit 
-    if cv2.waitKey(1) & 0xFF == ord("q"): 
-        break 
-
-cap.release()
-cv2.destroyAllWindows()
-
+def detect_human(): 

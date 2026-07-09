@@ -41,7 +41,7 @@ def main():
         SO101FollowerConfig(
             port=ROBOT_PORT,
             id=ROBOT_ID,
-            max_relative_target=5,
+            max_relative_target=15.0,
         )
     )
 
@@ -53,7 +53,7 @@ def main():
         # Example target: rotate base, lower shoulder a little, open gripper
         target = current.copy()
         target["shoulder_pan.pos"] += 15
-        target["shoulder_lift.pos"] = 45
+        target["shoulder_lift.pos"] = 10
         target["elbow_flex.pos"] = 45
         target["wrist_flex.pos"] = 45 
         target["wrist_roll.pos"] = 45 

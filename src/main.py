@@ -1,4 +1,4 @@
-from planner import DeskPlanner 
+from planner import next_action
 import cv2 
 from ultralytics import YOLO 
 from detection.trashdetect import (closest_trash, detect_trash, aruco_position )

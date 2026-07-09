@@ -3,10 +3,10 @@
 set -e 
 
 #activate enviroment 
-conda activate lerobot 
+#conda activate lerobot 
 
-export ROBOT_PORT= "/dev/tty.usbmodem5B415325441"
-export TELEOP_PORT= "/dev/tty.usbmodem5B415332981"
+export ROBOT_PORT="/dev/tty.usbmodem5B415325441"
+export TELEOP_PORT="/dev/tty.usbmodem5B415332981"
 
 #export ids? 
 

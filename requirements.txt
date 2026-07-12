@@ -5,3 +5,5 @@ opencv-contrib-python
 ultralytics
 lerobot
 torch
+mediapipe
+SpeechRecognition[audio]==3.17.0

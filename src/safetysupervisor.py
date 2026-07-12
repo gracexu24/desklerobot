@@ -8,9 +8,10 @@ from numpy import np
 
 #handle chunks or single actions? 
 
-def decide_mode(human_distance, human_detected): 
-    if (human_detected): 
-        if (human_distance < 20): 
+def decide_mode(hand_distance, hand_detected): 
+    if (hand_detected): 
+        #figure out this number 
+        if (hand_distance < 20): 
             return "stop"
         else: 
             return "slow"

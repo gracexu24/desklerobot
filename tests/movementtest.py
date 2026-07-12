@@ -6,7 +6,6 @@ from lerobot.robots.so_follower import SO101Follower, SO101FollowerConfig
 ROBOT_PORT = "/dev/tty.usbmodem5B415325441"
 ROBOT_ID = "rory"
 
-
 JOINTS = [
     "shoulder_pan.pos",
     "shoulder_lift.pos",

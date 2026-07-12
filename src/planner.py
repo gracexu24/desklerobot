@@ -14,6 +14,10 @@ def next_action(trash_exists, command, on_trash):
                 return "go to trash"
         else: 
             return "no move"
+    if (command == "stop"): 
+        return "stop"
+    if (command == "reset"): 
+        return "reset"
     # elif (command == "pen"): 
     else: 
         return "no move"

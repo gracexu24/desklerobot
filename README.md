@@ -8,7 +8,8 @@ notes:
 
 # data 
 
-
+# need this 
+brew install portaudio 
 
 # parts 
 
@@ -21,3 +22,6 @@ notes:
 7/9: 
 - tested camera detection, running policy with python, and moving the robot joints
 - issues: trained policy struggled to run (had to download locally), robot motor broke, camera is unable to detect trash on table or aruco tags, certain join positions stopped by lerobot for safety
+- test fixes: increase camera resolution, lower confidence threshhold, use different yolo model, maybe try just white color? 
+
+Put the fugging face policy locally 

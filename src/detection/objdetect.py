@@ -1,11 +1,15 @@
 
+import dis
 from termios import TABDLY
 from turtle import distance
 import cv2 
 import math
 from ultralytics import YOLO 
+import mediapipe as mp
+
 
 #add human detect? 
+#add hand detect? 
 
 # (0, 0) is the top-left corner 
 #make helper functions for detection values I need
@@ -26,6 +30,7 @@ from ultralytics import YOLO
 
 #cap = cv2.VideoCapture(camera_index)
 
+
 #helper functions 
 #return center of box, top left and bottom right corner inputted
 def center_of_box(x1,y1, x2,  y2):
@@ -34,7 +39,16 @@ def center_of_box(x1,y1, x2,  y2):
 def distance_between_points(point1, point2):
     return math.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
 
-def calc_human_distance(): 
+def calc_hand_distance(hand_positions, head_position): 
+    if hand_positions is None: 
+        closest_hand_distance = None
+    else: 
+        closest_hand_distance = distance_between_points(head_position, hand_positions[0])
+        for hand in hand_positions: 
+            new_hand = distance_between_points(head_position, hand)
+            if new_hand < closest_hand_distance: 
+                closest_hand_distance = new_hand
+    return closest_hand_distance
 
 #location of closest trash 
 def closest_trash(trash_list, head_position): 
@@ -85,4 +99,41 @@ def detect_trash(frame, display, model, trash_type):
                 cv2.putText(display,label,(x1, y1 - 10),cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
     return trash_positions
 
-def detect_human(): 
+def detect_human_hands(frame, display, hands, mp_drawing, mp_hands): 
+    hand_positions = []
+    frame_height, frame_width = frame.shape[:2]
+
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    hand_results = hands.process(rgb_frame)
+
+    if hand_results.multi_hand_landmarks:
+        for hand_landmarks in hand_results.multi_hand_landmarks:
+            x_coordinates = [
+                int(landmark.x * frame_width)
+                for landmark in hand_landmarks.landmark
+            ]
+            y_coordinates = [
+                int(landmark.y * frame_height)
+                for landmark in hand_landmarks.landmark
+            ]
+
+            x1, x2 = min(x_coordinates), max(x_coordinates)
+            y1, y2 = min(y_coordinates), max(y_coordinates)
+            hand_center = center_of_box(x1, y1, x2, y2)
+            hand_positions.append(hand_center)
+
+            cv2.rectangle(display, (x1, y1), (x2, y2), (255, 0, 0), 2)
+            cv2.circle(
+                display,
+                (int(hand_center[0]), int(hand_center[1])),
+                5,
+                (0, 0, 255),
+                -1,
+            )
+            mp_drawing.draw_landmarks(
+                display,
+                hand_landmarks,
+                mp_hands.HAND_CONNECTIONS,
+            )
+
+    return hand_positions

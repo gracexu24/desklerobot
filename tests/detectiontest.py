@@ -1,9 +1,20 @@
 #file tests aruco detection, yolo object detection (see if it can detect humans? and how?) and camera 
 import cv2 
+import mediapipe as mp
 from ultralytics import YOLO 
 
 #load in yolo model 
-model = YOLO("yolov8n.pt")
+model = YOLO("yolov8s.pt")
+
+#mediapipe hand detector
+mp_hands = mp.solutions.hands
+mp_drawing = mp.solutions.drawing_utils
+hands = mp_hands.Hands(
+    static_image_mode=False,
+    max_num_hands=2,
+    min_detection_confidence=0.25,
+    min_tracking_confidence=0.25,
+)
 
 #aruco detector 
 aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
@@ -11,7 +22,10 @@ aruco_params = cv2.aruco.DetectorParameters()
 detector = cv2.aruco.ArucoDetector(aruco_dict, aruco_params)
 
 camera_index = 0 
+
 cap = cv2.VideoCapture(camera_index)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
 if not cap.isOpened():
     raise RuntimeError(f"Could not open camera {camera_index}")
@@ -28,7 +42,7 @@ while True:
 
     #yolo 
     #test to see what yolo outputs as the names
-    results = model(frame, conf=0.5, verbose=False)
+    results = model(frame, conf=0.25, verbose=False)
     for result in results: 
         boxes = result.boxes
         for box in boxes: 
@@ -48,11 +62,22 @@ while True:
                 (0, 255, 0),
                 2
             )
+    #mediapipe hands test
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    hand_results = hands.process(rgb_frame)
+    if hand_results.multi_hand_landmarks:
+        for hand_landmarks in hand_results.multi_hand_landmarks:
+            mp_drawing.draw_landmarks(
+                display,
+                hand_landmarks,
+                mp_hands.HAND_CONNECTIONS,
+            )
+
     #make the frame grayscale 
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)   
     corners, ids, rejected = detector.detectMarkers(gray)
 
-    if ids: 
+    if ids is not None: 
         #detect and draw on arco
         cv2.aruco.drawDetectedMarkers(display, corners, ids)
    
@@ -62,5 +87,6 @@ while True:
         break 
 
 cap.release()
+hands.close()
 cv2.destroyAllWindows()
 

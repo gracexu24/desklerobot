@@ -53,11 +53,13 @@ def calc_hand_distance(hand_positions, head_position):
 #location of closest trash 
 def closest_trash(trash_list, head_position): 
     closest = distance_between_points(trash_list[0], head_position) 
+    trash_cords = trash_list[0]
     for trash in trash_list: 
         dist = distance_between_points(trash,head_position)
         if dist < closest: 
             closest = dist 
-    return closest 
+            trash_cords = trash
+    return trash_cords, closest 
 
 
 #main detection funcstions 

@@ -25,3 +25,7 @@ brew install portaudio
 - test fixes: increase camera resolution, lower confidence threshhold, use different yolo model, maybe try just white color? 
 
 Put the fugging face policy locally 
+
+Write design decisions 
+
+Write how I built this 

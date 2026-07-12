@@ -1,13 +1,16 @@
 import json
-import time
 from pathlib import Path
 
 import torch
 
+from lerobot.datasets.utils import build_dataset_frame
+from lerobot.policies.utils import make_robot_action
+from lerobot.utils.constants import OBS_STR
+from lerobot.utils.control_utils import predict_action
+
 POLICY_PATH = "models/act_desk_trash"
 TASK = "Pick up the trash and put it in trash can"
-ROBOT_PORT = "/dev/tty.usbmodem5B415325441"
-ROBOT_ID = "rory"
+DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 
 def load_policy():
     """
@@ -39,3 +42,27 @@ def load_policy():
 
     policy.eval()
     return policy, preprocessor, postprocessor, dataset_meta, cfg
+
+
+def run_policy_for_action(
+    robot,
+    observation,
+    policy,
+    preprocessor,
+    postprocessor,
+    dataset_meta,
+    cfg,
+):
+    """Run one policy inference step and return a robot joint dictionary."""
+    observation_frame = build_dataset_frame(dataset_meta.features, observation, prefix=OBS_STR)
+    action_tensor = predict_action(
+        observation=observation_frame,
+        policy=policy,
+        device=torch.device(cfg.device),
+        preprocessor=preprocessor,
+        postprocessor=postprocessor,
+        use_amp=cfg.use_amp,
+        task=TASK,
+        robot_type=robot.name,
+    )
+    return make_robot_action(action_tensor, dataset_meta.features)

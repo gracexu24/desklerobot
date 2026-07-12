@@ -19,9 +19,11 @@ def get_joint_positions(robot):
     return {joint: obs[joint] for joint in JOINTS}
 
 # have it do movement here or in main? i think return action instead - so do movement loop till location met in main 
-def decide_movement(robot_head, desired_pos): 
-    #logic for turn?!?!
-    return action or movemnt? 
+def decide_movement(robot, robot_head, desired_pos): 
+    if (desired_pos[0] < robot_head[0] and desired_pos[1] > robot_head[1]): 
+        return turn_counterclockwise(robot) 
+    else: 
+        return turn_clockwise(robot)
 
 #return action 
 #is this direction correct? 
@@ -46,7 +48,7 @@ def turn_counterclockwise(robot, angle=10):
             action[joint] = start[joint]
     return action 
 
-#just do it directly - figure out what is the resting postion numbers 
+#gotta figure out reset postions - improve this so this is less of a jump 
 def resting_position(robot): 
     current = get_joint_positions(robot)
     target = current.copy()
@@ -56,16 +58,4 @@ def resting_position(robot):
     target["wrist_flex.pos"] = 45 
     target["wrist_roll.pos"] = 45 
     target["gripper.pos"] = 45
-    smooth_move(robot, target)
-
-#from test, need to modify for this 
-def smooth_move(robot, target, duration_s=2.0, hz=30):
-    start = get_joint_positions(robot)
-    steps = int(duration_s * hz)
-    for i in range(1, steps + 1):
-        alpha = i / steps
-        action = {}
-        for joint in JOINTS:
-            action[joint] = start[joint] + alpha * (target[joint] - start[joint])
-        robot.send_action(action)
-        time.sleep(1 / hz)
+    return target 

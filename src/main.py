@@ -115,7 +115,7 @@ def main():
             closest_trash_distance = None
             if trash_xy: 
                 trash_exists = True
-                closest_trash_distance, trash_cords = closest_trash(trash_xy, robot_head_position)
+                trash_cords,closest_trash_distance = closest_trash(trash_xy, robot_head_position)
                 #calibrate this distance 
                 if closest_trash_distance <= 10:
                     on_trash = True 

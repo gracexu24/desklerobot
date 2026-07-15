@@ -51,19 +51,19 @@ def main():
 
         # Example target: rotate base, lower shoulder a little, open gripper
         target = current.copy()
-        target["shoulder_pan.pos"] += 15
-        target["shoulder_lift.pos"] = 10
-        target["elbow_flex.pos"] = 45
-        target["wrist_flex.pos"] = 45 
-        target["wrist_roll.pos"] = 45 
-        target["gripper.pos"] = 45
+        target["shoulder_pan.pos"] = 10
+        target["shoulder_lift.pos"] = -60
+        target["elbow_flex.pos"] = 100
+        target["wrist_flex.pos"] = 10
+        target["wrist_roll.pos"] = 50
+        target["gripper.pos"] = 0
 
         smooth_move(robot, target, duration_s=2.0)
 
         time.sleep(1)
 
         # Return to original pose
-        smooth_move(robot, current, duration_s=2.0)
+        #smooth_move(robot, current, duration_s=2.0)
 
     finally:
         robot.disconnect()

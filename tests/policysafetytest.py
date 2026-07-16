@@ -9,9 +9,7 @@ Distance is measured in camera pixels from the largest red circular marker to
 the closest detected hand. Motion is stopped whenever the red marker is lost.
 """
 
-import queue
 import sys
-import threading
 import time
 from pathlib import Path
 
@@ -42,7 +40,7 @@ def create_robot():
         SO101FollowerConfig(
             port=ROBOT_PORT,
             id=ROBOT_ID,
-            max_relative_target=5.0,
+            max_relative_target=15.0,
             cameras={
                 "front": OpenCVCameraConfig(
                     index_or_path=0,
@@ -56,7 +54,7 @@ def create_robot():
 
 
 def detect_red_marker(frame, display):
-    """Return the center of the largest approximately circular red region."""
+    """Return the center of the largest red region, regardless of shape."""
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     mask = cv2.bitwise_or(
         cv2.inRange(
@@ -79,23 +77,22 @@ def detect_red_marker(frame, display):
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     for contour in contours:
         area = cv2.contourArea(contour)
-        perimeter = cv2.arcLength(contour, True)
-        if area < max(30.0, frame_area * 0.0001) or perimeter == 0:
+        if area < max(30.0, frame_area * 0.0001):
             continue
 
-        circularity = 4.0 * np.pi * area / (perimeter * perimeter)
         x, y, width, height = cv2.boundingRect(contour)
-        if circularity < 0.55 or not 0.65 <= width / float(height) <= 1.35:
-            continue
-
-        (center_x, center_y), radius = cv2.minEnclosingCircle(contour)
-        candidates.append(((int(center_x), int(center_y)), int(radius)))
+        center = (x + width // 2, y + height // 2)
+        candidates.append((center, area, contour, (x, y, width, height)))
 
     if not candidates:
         return None, mask
 
-    center, radius = max(candidates, key=lambda candidate: candidate[1])
-    cv2.circle(display, center, radius, (255, 0, 255), 3)
+    center, _, contour, (x, y, width, height) = max(
+        candidates,
+        key=lambda candidate: candidate[1],
+    )
+    cv2.drawContours(display, [contour], -1, (255, 0, 255), 3)
+    cv2.rectangle(display, (x, y), (x + width, y + height), (255, 0, 255), 2)
     cv2.circle(display, center, 4, (255, 255, 255), -1)
     return center, mask
 
@@ -188,19 +185,6 @@ def hold_current_position(robot, observation):
     return dict(robot.send_action(hold_action))
 
 
-def read_terminal_commands(commands):
-    """Read start/pause/quit commands without blocking the control loop."""
-    while True:
-        try:
-            command = input().strip().lower()
-        except EOFError:
-            return
-        if command:
-            commands.put(command)
-        if command == "q":
-            return
-
-
 def main():
     mp_hands = mp.solutions.hands
     mp_drawing = mp.solutions.drawing_utils
@@ -220,15 +204,8 @@ def main():
     previous_action = None
     last_print_time = 0.0
     dt = 1.0 / FPS
-    commands = queue.Queue()
-    threading.Thread(
-        target=read_terminal_commands,
-        args=(commands,),
-        daemon=True,
-    ).start()
     print("Robot connected. Policy is PAUSED.")
     print("Camera window: S=start, Space=pause, Q=quit")
-    print("Terminal: type s, p, or q and press Enter")
 
     try:
         while True:
@@ -273,12 +250,6 @@ def main():
                 command = "p"
             elif key in (ord("q"), ord("Q")):
                 command = "q"
-
-            try:
-                terminal_command = commands.get_nowait()
-                command = terminal_command
-            except queue.Empty:
-                pass
 
             if command == "q":
                 previous_action = hold_current_position(robot, observation)

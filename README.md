@@ -1,21 +1,41 @@
 # desklerobot
 
-# project 
+# Project 
 
+# Install 
+brew install portaudio 
+pip install -r requirements.txt
 
-notes: 
+# Note on AI usage
+- used cursor to assist with errors and debugging
 - all code written by hand to learn and practice unless marked by a coment 
 
-# data 
+# File Structure 
+- scripts 
+- src 
+    - detection 
+        - objdetect.py 
+    - voice 
+        - command.py 
+    - main.py - do updates 
 
-# need this 
-brew install portaudio 
+# Data 
 
-# parts 
+# Design Choices 
 
-# AI usage
+# Links 
 
-- used cursor to assist with errors and debugging
+# Tests 
+AI asistanced in creating these scripts 
+
+- movementtest - test joint control, controlled safe movment, and find optimal resting position 
+- testrunpolicy - tests running trained ACT policy with python code 
+- policysafetytest - used to test values between hand and robot head and then can also start policy, test the slowed down policy, uses the safteysupervisor  
+- voiceinputtest - tests commands using speech_recognition, tests queue, test microphone and also parse strings to validate
+- detection test - used to try different ways to detect objects, markers, camera input - tested yolo, aruco, color detection, pixel distance 
+
+# Future Improvements 
+
 
 # Records
 
@@ -46,6 +66,8 @@ Things i need to test:
 
 -calibrated resting position
 - additional testing code 
+
+- gotta handle safe movments in main... 
 
 - i like the additional controls 
 
@@ -814,3 +836,11 @@ WARNING:root:Relative goal position magnitude had to be clamped to be safe.
 Policy paused.
 
 error im getting 
+
+LeRobot clamps
+Body joints normalized to [-100, 100]
+Gripper normalized to [0, 100]
+Calibrated hardware position limits
+max_relative_target=5.0 in policysafetytest.py
+Gripper torque/current protection
+Servo firmware overload/temperature/voltage protection

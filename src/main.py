@@ -3,7 +3,7 @@ import time
 import mediapipe as mp
 from ultralytics import YOLO 
 #detection 
-from detection.objdetect import (closest_trash, detect_trash, aruco_position,detect_human_hands,calc_hand_distance)
+from detection.objdetect import (closest_trash, detect_trash, detect_red_head,detect_human_hands,calc_hand_distance)
 #voice 
 from voice.command import VoiceListener
 from planner import next_action 
@@ -14,50 +14,33 @@ from safetysupervisor import (decide_mode, filter_action)
 from lerobot.robots.so_follower import SO101Follower, SO101FollowerConfig
 from lerobot.cameras.opencv import OpenCVCameraConfig
 
+#move camera details here - camera resolution, fps, etc. 
 #whys to improve: error handling, edge cases, add print statements, what happens when return nothing? 
 #when to error/ try accept, good code writing?, what calls could fail?, try fixing that 
 #do i need helper functions? what helper functions do I need? 
 #imporvements: handle all trash 
-
-#break into parts and test part by part 
-#main loop 
-#run perception, trash and human 
-#listen for voice 
-#input perception and voice into planner 
-#planner outputs action word
-#policy or skill chosen by planner (gotta handle chunking later, figure out when to finish)
-#action ran through saftey (in seperate file?)
-#add more saftey features in the future
-#action happens 
-
-#things to consider: maintaining command state for timming 
+#practice manually looking and testing for bugs and edge casses in code please
+#check inputs and empty cases 
+#constants in one place 
 
 #camera set up and variables 
 ROBOT_PORT = "/dev/tty.usbmodem5B415325441"
 ROBOT_ID = "rory"
-POLICY_DURATION_S = 30.0
+
+POLICY_DURATION_S = 15.0 #seconds
+TRASH_DISTANCE_THRESHOLD = 190 #pixels
+HAND_DISTANCE_THRESHOLD = 20 #pixels
+
 
 def main():
 
     #startup code 
 
-    model = YOLO("yolov8s.pt")
-    #aruco detector 
-    aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
-    aruco_params = cv2.aruco.DetectorParameters()
-    detector = cv2.aruco.ArucoDetector(aruco_dict, aruco_params)
-
     #hand detector 
     mp_hands = mp.solutions.hands
     mp_drawing = mp.solutions.drawing_utils
-    hands = mp_hands.Hands(
-        static_image_mode=False,
-        max_num_hands=2,
-        min_detection_confidence=0.25,
-        min_tracking_confidence=0.25,
-    )
-    robot_head_position = (0, 0)
-    num_trash= 0 
+    hands = mp_hands.Hands(static_image_mode=False, max_num_hands=2, min_detection_confidence=0.25, min_tracking_confidence=0.25,)
+    robot_head_position = None
     trash_xy = []
 
     action_name = ""
@@ -85,16 +68,15 @@ def main():
     listener = VoiceListener()
     listener.start()
 
-    print("set up done")
-
     # The previous action is the last action actually sent by LeRobot.
     # None means no action has been sent during this run yet.
     previous_action = None
     policy_end_time = None
 
+    print("set up done")
+
     try: 
-        #things need to be calibrated 
-        #does the timing of everything work?
+
         while True:
             # LeRobot owns camera index 0 and returns its RGB frame in the observation.
             observation = robot.get_observation()
@@ -103,28 +85,28 @@ def main():
 
             # Make a copy to draw on
             display = frame.copy()
-            #add more to display?
 
             #detection 
-            #gotta figure out what number the aruco number is 
-            robot_head_position = aruco_position(frame, display, detector, 2)
-            #need to figure out trash type 
-            trash_xy = detect_trash(frame, display, model, "paper")
+            robot_head_position = detect_red_head(frame, display)
+            trash_xy = detect_trash(frame, display)
             trash_exists = False
             on_trash = False 
             closest_trash_distance = None
+
             if trash_xy: 
                 trash_exists = True
                 trash_cords,closest_trash_distance = closest_trash(trash_xy, robot_head_position)
                 #calibrate this distance 
-                if closest_trash_distance <= 10:
+                if closest_trash_distance <= TRASH_DISTANCE_THRESHOLD:
                     on_trash = True 
+
             human_hands = detect_human_hands(frame, display, hands, mp_drawing, mp_hands)
             hand_exists = False
             closest_hand_distance = None
             if human_hands: 
                 hand_exists = True
                 closest_hand_distance = calc_hand_distance(human_hands, robot_head_position)
+
             print(f"Debug: head: {robot_head_position}")
             print(f"Debug: trash: {trash_xy}, closest trash distance: {closest_trash_distance}")
             print(f"Debug: hands: {human_hands}, closest hand distance: {closest_hand_distance}")
@@ -173,9 +155,11 @@ def main():
                     cfg=policy_cfg,
                 )
             elif action_name == "go to trash": 
-                #how to loop through this 
+                #does this work? 
+                #does planner choose correctly? 
                 robot_action = decide_movement(robot, robot_head_position, trash_cords)
             elif action_name == "reset": 
+                #does this work? - how to do it slowly? 
                 robot_action = resting_position(robot)
             #stop and no move both send frozen action
             else: 
@@ -189,9 +173,9 @@ def main():
             if cv2.waitKey(1) & 0xFF == ord("q"): 
                 break 
         
-            #send action to robot..
+            #send action to robot
             #run through saftey 
-            mode = decide_mode(closest_hand_distance, hand_exists)
+            mode = decide_mode(closest_hand_distance, hand_exists, HAND_DISTANCE_THRESHOLD)
             print(f"Debug: safety mode: {mode}")
             filtered_action = filter_action(robot_action, observation, mode, previous_action)
 

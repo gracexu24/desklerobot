@@ -3,24 +3,14 @@
 import json
 import time
 from pathlib import Path
-
 import torch
 
-# =========================
-# EDIT THESE VALUES
-# =========================
+#AI generated code, modified for tests I wanted  
 
 POLICY_PATH = "models/act_desk_trash"
 TASK = "Pick up the trash and put it in trash can"
-# Example local:
-# POLICY_PATH = "/Users/gracexu/lerobot/outputs/train/act_pick_cube/checkpoints/last/pretrained_model"
-
-# Example Hugging Face:
-# POLICY_PATH = "your_hf_username/your_policy_name"
 
 ROBOT_PORT = "/dev/tty.usbmodem5B415325441"
-# Example:
-# ROBOT_PORT = "/dev/tty.usbmodem575E0032081"
 
 ROBOT_ID = "rory"
 

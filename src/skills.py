@@ -1,10 +1,8 @@
-#gotta figure out the right motors for this 
-#turn clockwise
-#turn counterclockwise
-#move to starting 
-#move to given location (where should this go, do more advanced math calculation)
-import time 
-
+#needs the most improvement!
+#improvements made: 
+# - learn how to normalize movements to avoid hardcoding
+# - try movement logic in test first 
+# - remove extra observation call - imporve latency
 JOINTS = [
     "shoulder_pan.pos",
     "shoulder_lift.pos",
@@ -18,7 +16,7 @@ def get_joint_positions(robot):
     obs = robot.get_observation()
     return {joint: obs[joint] for joint in JOINTS}
 
-# have it do movement here or in main? i think return action instead - so do movement loop till location met in main 
+# decide movement direct based on desired position
 def decide_movement(robot, robot_head, desired_pos): 
     if (desired_pos[0] < robot_head[0] and desired_pos[1] > robot_head[1]): 
         return turn_counterclockwise(robot) 

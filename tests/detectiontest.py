@@ -22,8 +22,10 @@ WHITE_MIN_VALUE = 90
 MIN_WHITE_SIZE_PX = 50
 MAX_WHITE_SIZE_PX = 100
 
-# Optional YOLO setup, kept for later use with custom weights.
-# model = YOLO("runs/detect/train/weights/best.pt")
+# Optional YOLOv8 models, kept commented out for later use.
+# pretrained_model = YOLO("yolov8s.pt")
+# custom_model = YOLO("runs/detect/train/weights/best.pt")
+# model = pretrained_model  # Change to custom_model to use your trained weights.
 
 #mediapipe hand detector
 mp_hands = mp.solutions.hands
@@ -67,8 +69,8 @@ hands = mp_hands.Hands(
 #     ]
 #     return corners, ids
 
-def detect_red_circles(frame, display):
-    """Find saturated red regions whose contours are approximately circular."""
+def detect_red_areas(frame, display):
+    """Find red regions of any shape above the minimum area."""
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
     # Red wraps around both ends of OpenCV's hue range.
@@ -88,25 +90,18 @@ def detect_red_circles(frame, display):
     frame_area = frame.shape[0] * frame.shape[1]
     min_area = max(30.0, frame_area * 0.0001)
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    circles = []
+    red_areas = []
 
     for contour in contours:
         area = cv2.contourArea(contour)
-        perimeter = cv2.arcLength(contour, True)
-        if area < min_area or perimeter == 0:
+        if area < min_area:
             continue
 
-        circularity = 4.0 * np.pi * area / (perimeter * perimeter)
         x, y, width, height = cv2.boundingRect(contour)
-        aspect_ratio = width / float(height)
-        if circularity < 0.55 or not 0.65 <= aspect_ratio <= 1.35:
-            continue
-
-        (center_x, center_y), radius = cv2.minEnclosingCircle(contour)
-        center = (int(center_x), int(center_y))
-        radius = int(radius)
-        circles.append((center, radius))
-        cv2.circle(display, center, radius, (255, 0, 255), 3)
+        center = (x + width // 2, y + height // 2)
+        red_areas.append((center, area))
+        cv2.drawContours(display, [contour], -1, (255, 0, 255), 3)
+        cv2.rectangle(display, (x, y), (x + width, y + height), (255, 0, 255), 2)
         cv2.circle(display, center, 4, (255, 255, 255), -1)
         cv2.putText(
             display,
@@ -118,7 +113,7 @@ def detect_red_circles(frame, display):
             2,
         )
 
-    return mask, circles
+    return mask, red_areas
 
 def detect_white_objects(frame, display):
     """Outline bright, low-saturation regions while ignoring tiny noise."""
@@ -158,12 +153,13 @@ def detect_white_objects(frame, display):
 
     return mask, white_objects
 
-def draw_marker_distances(display, red_circles, white_objects):
-    """Draw pixel distances from the largest red marker to each white object."""
-    if not red_circles:
+#helpful for testing distances between objects
+def draw_marker_distances(display, red_areas, white_objects):
+    """Draw pixel distances from the largest red area to each white object."""
+    if not red_areas:
         return
 
-    red_center, _ = max(red_circles, key=lambda circle: circle[1])
+    red_center, _ = max(red_areas, key=lambda red_area: red_area[1])
     for x, y, width, height in white_objects:
         white_center = (x + width // 2, y + height // 2)
         distance_px = float(
@@ -248,7 +244,7 @@ while True:
     # Make a copy to draw on
     display = frame.copy()
 
-    # Optional YOLO inference, kept commented out until custom weights exist.
+    # Optional pretrained YOLOv8 inference.
     # results = model(frame, conf=0.25, imgsz=960, verbose=False)
     # for result in results:
     #     for box in result.boxes:
@@ -289,9 +285,9 @@ while True:
                 mp_hands.HAND_CONNECTIONS,
             )
 
-    red_mask, red_circles = detect_red_circles(frame, display)
-    marker_status = f"Red circles: {len(red_circles)}"
-    draw_marker_distances(display, red_circles, white_objects)
+    red_mask, red_areas = detect_red_areas(frame, display)
+    marker_status = f"Red areas: {len(red_areas)}"
+    draw_marker_distances(display, red_areas, white_objects)
 
     cv2.putText(
         display,
@@ -320,10 +316,12 @@ while True:
     cv2.imshow("White objects + red marker", display)
     cv2.imshow("White detection mask", white_mask)
     cv2.imshow("Red marker mask", red_mask)
+
     key = cv2.waitKey(1) & 0xFF
     if key == ord("q"):
         break
     if key == ord(" "):
+        #use for future custom training data creation
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         image_path = PHOTO_OUTPUT_DIR / f"trash_{timestamp}.jpg"
         # Save the untouched camera frame, without detection overlays.

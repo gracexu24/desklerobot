@@ -1,15 +1,10 @@
-#take in action and distance/presence of a human
-#modify action if needed 
-# return the modified action 
-
 #used chat to help with slowing and stopping funcitons 
+#future improvement: handle chunks not single actions 
 
-#handle chunks or single actions? 
-
-def decide_mode(hand_distance, hand_detected): 
+def decide_mode(hand_distance, hand_detected, distance_threshold): 
     if hand_detected and hand_distance is not None: 
         #figure out this number 
-        if hand_distance < 20: 
+        if hand_distance < distance_threshold: 
             return "stop"
         else: 
             return "slow"

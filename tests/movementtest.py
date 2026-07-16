@@ -1,7 +1,7 @@
 import time
 from lerobot.robots.so_follower import SO101Follower, SO101FollowerConfig
 
-#chat generate test code, modified for tests I wanted 
+#AI generated test code, modified for tests I wanted 
 
 ROBOT_PORT = "/dev/tty.usbmodem5B415325441"
 ROBOT_ID = "rory"
@@ -19,6 +19,7 @@ def get_joint_positions(robot):
     obs = robot.get_observation()
     return {joint: obs[joint] for joint in JOINTS}
 
+#implement this in main 
 def smooth_move(robot, target, duration_s=2.0, hz=30):
     start = get_joint_positions(robot)
 
@@ -49,7 +50,7 @@ def main():
     try:
         current = get_joint_positions(robot)
 
-        # Example target: rotate base, lower shoulder a little, open gripper
+        # This is the starting/restingposition
         target = current.copy()
         target["shoulder_pan.pos"] = 10
         target["shoulder_lift.pos"] = -60

@@ -6,12 +6,15 @@ action dictionaries from the current observation.
 Controls (camera window must be focused):
     A: one small counterclockwise shoulder-pan step
     D: one small clockwise shoulder-pan step
-    P: PID-align the red marker horizontally with the nearest white object
+    P: angularly align the red marker with the nearest white object
     R: move toward the resting position
     Space: hold current position
     Q: hold and quit
 """
 
+#should lock target for moving! 
+
+import math
 import sys
 import time
 from pathlib import Path
@@ -34,6 +37,7 @@ from safetysupervisor import decide_mode, filter_action
 from lerobot.cameras.opencv import OpenCVCameraConfig
 from lerobot.robots.so_follower import SO101Follower, SO101FollowerConfig
 
+
 ROBOT_PORT = "/dev/tty.usbmodem5B415325441"
 ROBOT_ID = "rory"
 CAMERA_WIDTH = 640
@@ -41,12 +45,18 @@ CAMERA_HEIGHT = 480
 CAMERA_FPS = 30
 
 MANUAL_TURN_STEP = 1.0
-PID_KP = 0.01
+
+# Visual alignment uses angular error around the shoulder-pan pivot.
+# Start with proportional-only control; increase KP gradually if movement is too slow.
+PID_KP = 0.25
 PID_KI = 0.0
 PID_KD = 0.0
-PID_MAX_STEP = 0.5
-PID_DEADBAND_PX = 15.0
+PID_MAX_STEP = 1.5
+PID_DEADBAND_DEG = 3.5
 PID_DIRECTION = 1.0  # Change to -1.0 if the marker moves away from the target.
+
+# Hardcoded shoulder-pan pivot in camera pixels: (x, y).
+SHOULDER_PIVOT_PX = (90, 440)
 
 JOINTS = [
     "shoulder_pan.pos",
@@ -95,7 +105,13 @@ class PIDController:
     def update(self, error):
         now = time.monotonic()
         if abs(error) <= self.deadband:
+            was_outside_deadband = (
+                self.previous_error is not None
+                and abs(self.previous_error) > self.deadband
+            )
             self.reset()
+            if was_outside_deadband:
+                print("Aligned (within angular deadband)")
             return 0.0
 
         if self.previous_time is None:
@@ -149,16 +165,45 @@ def resting_position(observation):
     return action
 
 
+def calculate_angular_error(robot_head, desired_position, pivot):
+    """Return signed shortest angular error from the red marker to the target.
+
+    All inputs are image coordinates in (x, y) pixel order. Positive and
+    negative errors represent opposite shoulder-pan directions.
+    """
+    robot_angle = math.atan2(
+        float(robot_head[1] - pivot[1]),
+        float(robot_head[0] - pivot[0]),
+    )
+    target_angle = math.atan2(
+        float(desired_position[1] - pivot[1]),
+        float(desired_position[0] - pivot[0]),
+    )
+
+    raw_error = target_angle - robot_angle
+
+    # Normalize to [-pi, pi] so the robot chooses the shorter turn.
+    wrapped_error = math.atan2(
+        math.sin(raw_error),
+        math.cos(raw_error),
+    )
+    return math.degrees(wrapped_error)
+
+
 def pid_movement(observation, robot_head, desired_position, controller):
     action = joint_positions(observation)
     if robot_head is None or desired_position is None:
         controller.reset()
         return action, None, 0.0
 
-    horizontal_error = float(desired_position[0] - robot_head[0])
-    pan_delta = controller.update(horizontal_error)
+    angular_error = calculate_angular_error(
+        robot_head,
+        desired_position,
+        SHOULDER_PIVOT_PX,
+    )
+    pan_delta = controller.update(angular_error)
     action["shoulder_pan.pos"] += pan_delta
-    return action, horizontal_error, pan_delta
+    return action, angular_error, pan_delta
 
 
 def create_robot():
@@ -179,14 +224,41 @@ def create_robot():
     )
 
 
+def draw_pivot(display, pivot):
+    """Draw the pivot, or an edge marker if the pivot is outside the frame."""
+    height, width = display.shape[:2]
+    pivot_x, pivot_y = int(pivot[0]), int(pivot[1])
+
+    if 0 <= pivot_x < width and 0 <= pivot_y < height:
+        cv2.circle(display, (pivot_x, pivot_y), 8, (255, 0, 255), -1)
+        label_position = (pivot_x + 10, max(20, pivot_y - 10))
+        label = f"pivot ({pivot_x}, {pivot_y})"
+    else:
+        edge_x = max(0, min(pivot_x, width - 1))
+        edge_y = max(0, min(pivot_y, height - 1))
+        cv2.circle(display, (edge_x, edge_y), 8, (255, 0, 255), -1)
+        label_position = (max(5, edge_x - 180), max(20, edge_y - 12))
+        label = f"pivot ({pivot_x}, {pivot_y}) off-screen"
+
+    cv2.putText(
+        display,
+        label,
+        label_position,
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.5,
+        (255, 0, 255),
+        2,
+    )
+
+
 def draw_status(display, control_mode, safety_mode, error, pan_delta):
-    error_text = "n/a" if error is None else f"{error:.1f} px"
+    error_text = "n/a" if error is None else f"{error:.1f} deg"
     lines = [
         f"Control: {control_mode}",
         f"Safety: {safety_mode}",
-        f"Horizontal error: {error_text}",
-        f"PID pan delta: {pan_delta:.3f}",
-        "A/D: turn | P: PID | R: rest | Space: hold | Q: quit",
+        f"Angular error: {error_text}",
+        f"Pan delta: {pan_delta:.3f} deg",
+        "A/D: turn | P: angular align | R: rest | Space: hold | Q: quit",
     ]
     for index, text in enumerate(lines):
         cv2.putText(
@@ -214,7 +286,7 @@ def main():
         ki=PID_KI,
         kd=PID_KD,
         max_output=PID_MAX_STEP,
-        deadband=PID_DEADBAND_PX,
+        deadband=PID_DEADBAND_DEG,
         direction=PID_DIRECTION,
     )
     robot = create_robot()
@@ -231,6 +303,7 @@ def main():
             rgb_frame = observation["front"]
             frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
             display = frame.copy()
+            draw_pivot(display, SHOULDER_PIVOT_PX)
 
             robot_head = detect_red_head(frame, display)
             trash_positions = detect_trash(frame, display, None, None)
@@ -246,6 +319,21 @@ def main():
                     (int(robot_head[0]), int(robot_head[1])),
                     (int(desired_position[0]), int(desired_position[1])),
                     (0, 255, 255),
+                    2,
+                )
+                # Show the two rays whose angle difference drives the controller.
+                cv2.line(
+                    display,
+                    SHOULDER_PIVOT_PX,
+                    (int(robot_head[0]), int(robot_head[1])),
+                    (255, 0, 255),
+                    2,
+                )
+                cv2.line(
+                    display,
+                    SHOULDER_PIVOT_PX,
+                    (int(desired_position[0]), int(desired_position[1])),
+                    (255, 255, 0),
                     2,
                 )
                 cv2.putText(
@@ -275,9 +363,9 @@ def main():
             if robot_head is None:
                 safety_mode = "stop"
             else:
-                safety_mode = decide_mode(hand_distance, bool(hand_positions))
+                safety_mode = decide_mode(hand_distance, bool(hand_positions), 100)
 
-            horizontal_error = None
+            angular_error = None
             pan_delta = 0.0
             if control_mode == "clockwise":
                 robot_action = turn_clockwise(observation)
@@ -288,7 +376,7 @@ def main():
             elif control_mode == "rest":
                 robot_action = resting_position(observation)
             elif control_mode == "pid":
-                robot_action, horizontal_error, pan_delta = pid_movement(
+                robot_action, angular_error, pan_delta = pid_movement(
                     observation,
                     robot_head,
                     desired_position,
@@ -301,7 +389,7 @@ def main():
                 display,
                 control_mode,
                 safety_mode,
-                horizontal_error,
+                angular_error,
                 pan_delta,
             )
             cv2.imshow("Skills PID test", display)

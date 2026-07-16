@@ -1,5 +1,11 @@
 # desklerobot
 
+todo: 
+- gotta look through new test script and try it out and then implement it
+- check 3 files 
+
+- initial just horizontal PID, not the write implementation 
+
 # Project 
 
 # Install 
@@ -9,6 +15,7 @@ pip install -r requirements.txt
 # Note on AI usage
 - used cursor to assist with errors and debugging
 - all code written by hand to learn and practice unless marked by a coment 
+- used AI to detect bugs and recommend implementations 
 
 # File Structure 
 - scripts 
@@ -18,10 +25,17 @@ pip install -r requirements.txt
     - voice 
         - command.py 
     - main.py - do updates 
+    - safetysupervisor.py 
+    - skills.py - needs a lot of updates 
+    - runpolicy.py - AI generated, runs pretrained policy 
+    - planner.py - 
 
 # Data 
 
 # Design Choices 
+- Listening thread 
+- Mode included in planner
+ 
 
 # Links 
 
@@ -36,6 +50,10 @@ AI asistanced in creating these scripts
 
 # Future Improvements 
 
+- Policy completed indicator 
+- Explicit state machine 
+- Noisy causing incorrect movement
+- True pause 
 
 # Records
 

@@ -7,7 +7,7 @@ from detection.objdetect import (closest_trash, detect_trash, detect_red_head,de
 #voice 
 from voice.command import VoiceListener
 from planner import next_action 
-from skills import (decide_movement, resting_position)
+from skills import (PIDController, pid_movement, smooth_move, increment_resting_position, PIDController, pid_movement)
 from runpolicy import load_policy, run_policy_for_action
 from safetysupervisor import (decide_mode, filter_action)
 
@@ -22,20 +22,40 @@ from lerobot.cameras.opencv import OpenCVCameraConfig
 #practice manually looking and testing for bugs and edge casses in code please
 #check inputs and empty cases 
 #constants in one place 
+#dont hardcode variables 
+
+#not empty stuff 
+
 
 #camera set up and variables 
 ROBOT_PORT = "/dev/tty.usbmodem5B415325441"
 ROBOT_ID = "rory"
 
 POLICY_DURATION_S = 15.0 #seconds
-TRASH_DISTANCE_THRESHOLD = 190 #pixels
-HAND_DISTANCE_THRESHOLD = 20 #pixels
+TRASH_DISTANCE_THRESHOLD = 120 #pixels
+HAND_DISTANCE_THRESHOLD = 90 #pixels
+SLOW_FACTOR = 0.5 #fraction of the way to the target
 
+
+# Visual alignment uses angular error around the shoulder-pan pivot.
+# Start with proportional-only control; increase KP gradually if movement is too slow.
+PID_KP = 0.25
+PID_KI = 0.0
+PID_KD = 0.0
+PID_MAX_STEP = 1.5
+PID_DEADBAND_DEG = 3.5
+PID_DIRECTION = 1.0
+
+REST_TARGET = {
+    "shoulder_pan.pos": 10,
+    "shoulder_lift.pos": -60,
+    "elbow_flex.pos": 100,
+    "wrist_flex.pos": 10,
+    "wrist_roll.pos": 50,
+    "gripper.pos": 0,
+}
 
 def main():
-
-    #startup code 
-
     #hand detector 
     mp_hands = mp.solutions.hands
     mp_drawing = mp.solutions.drawing_utils
@@ -61,6 +81,15 @@ def main():
         )
     )
 
+    controller = PIDController(
+                    kp=PID_KP,
+                    ki=PID_KI,
+                    kd=PID_KD,
+                    max_output=PID_MAX_STEP,
+                    deadband=PID_DEADBAND_DEG,
+                    direction=PID_DIRECTION,
+                )
+
     policy, preprocessor, postprocessor, dataset_meta, policy_cfg = load_policy()
     robot.connect() 
 
@@ -73,6 +102,8 @@ def main():
     previous_action = None
     policy_end_time = None
 
+    #start robot position
+    smooth_move(robot, REST_TARGET, duration_s=2.0)
     print("set up done")
 
     try: 
@@ -93,13 +124,15 @@ def main():
             on_trash = False 
             closest_trash_distance = None
 
+            #trash detection used for planner input 
             if trash_xy: 
                 trash_exists = True
                 trash_cords,closest_trash_distance = closest_trash(trash_xy, robot_head_position)
                 #calibrate this distance 
                 if closest_trash_distance <= TRASH_DISTANCE_THRESHOLD:
                     on_trash = True 
-
+            
+            #hand detection used for safety supervisor input 
             human_hands = detect_human_hands(frame, display, hands, mp_drawing, mp_hands)
             hand_exists = False
             closest_hand_distance = None
@@ -111,7 +144,10 @@ def main():
             print(f"Debug: trash: {trash_xy}, closest trash distance: {closest_trash_distance}")
             print(f"Debug: hands: {human_hands}, closest hand distance: {closest_hand_distance}")
             print(f"Debug: closest hand distance: {closest_hand_distance}")
-        
+
+            #mode choice 
+            mode = decide_mode(closest_hand_distance, hand_exists, HAND_DISTANCE_THRESHOLD)
+
             #voice 
             #keeps old command until a new one arrives - important for later logic 
             new_command = listener.get_command()
@@ -119,10 +155,10 @@ def main():
                 command = new_command
 
             #planner chooses position 
-            action_name = next_action(trash_exists, command, on_trash)
+            action_name = next_action(trash_exists, command, on_trash, mode)
 
             current_time = time.monotonic()
-            if command in ("stop", "reset"):
+            if action_name in ("stop", "reset"):
                 policy_end_time = None
             elif policy_end_time is not None:
                 if current_time < policy_end_time:
@@ -157,10 +193,14 @@ def main():
             elif action_name == "go to trash": 
                 #does this work? 
                 #does planner choose correctly? 
-                robot_action = decide_movement(robot, robot_head_position, trash_cords)
+                robot_action, angular_error, pan_delta = pid_movement(
+                    observation,
+                    robot_head_position,
+                    trash_cords,
+                    controller,
+                )
             elif action_name == "reset": 
-                #does this work? - how to do it slowly? 
-                robot_action = resting_position(robot)
+                robot_action = increment_resting_position(observation, REST_TARGET)
             #stop and no move both send frozen action
             else: 
                 robot_action = {
@@ -175,9 +215,8 @@ def main():
         
             #send action to robot
             #run through saftey 
-            mode = decide_mode(closest_hand_distance, hand_exists, HAND_DISTANCE_THRESHOLD)
             print(f"Debug: safety mode: {mode}")
-            filtered_action = filter_action(robot_action, observation, mode, previous_action)
+            filtered_action = filter_action(robot_action, observation, mode, SLOW_FACTOR, previous_action)
 
             sent_action = robot.send_action(filtered_action)
             previous_action = dict(sent_action)

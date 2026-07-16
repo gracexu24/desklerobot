@@ -12,7 +12,7 @@ RED_MIN_VALUE = 70
 WHITE_MAX_SATURATION = 160
 WHITE_MIN_VALUE = 90
 MIN_WHITE_SIZE_PX = 50
-MAX_WHITE_SIZE_PX = 120
+MAX_WHITE_SIZE_PX = 100
 
 # (0, 0) is the top-left corner  
 
@@ -103,7 +103,7 @@ def detect_red_head(frame, display):
 
 #return a list of trash coords and draw it on display (if list returned is empty then no trash)
 #used to use yolo model to detect trash, now detects white color objects within a size range (old code commented out)
-def detect_trash(frame, display, model, trash_type): 
+def detect_trash(frame, display): 
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     lower_white = np.array([0, 0, WHITE_MIN_VALUE], dtype=np.uint8)
     upper_white = np.array([179, WHITE_MAX_SATURATION, 255], dtype=np.uint8)

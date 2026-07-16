@@ -54,7 +54,7 @@ def create_robot():
 
 
 def detect_red_marker(frame, display):
-    """Return the center of the largest red region, regardless of shape."""
+    """Return the center of the largest approximately circular red region."""
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     mask = cv2.bitwise_or(
         cv2.inRange(
@@ -77,22 +77,23 @@ def detect_red_marker(frame, display):
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     for contour in contours:
         area = cv2.contourArea(contour)
-        if area < max(30.0, frame_area * 0.0001):
+        perimeter = cv2.arcLength(contour, True)
+        if area < max(30.0, frame_area * 0.0001) or perimeter == 0:
             continue
 
+        circularity = 4.0 * np.pi * area / (perimeter * perimeter)
         x, y, width, height = cv2.boundingRect(contour)
-        center = (x + width // 2, y + height // 2)
-        candidates.append((center, area, contour, (x, y, width, height)))
+        if circularity < 0.55 or not 0.65 <= width / float(height) <= 1.35:
+            continue
+
+        (center_x, center_y), radius = cv2.minEnclosingCircle(contour)
+        candidates.append(((int(center_x), int(center_y)), int(radius)))
 
     if not candidates:
         return None, mask
 
-    center, _, contour, (x, y, width, height) = max(
-        candidates,
-        key=lambda candidate: candidate[1],
-    )
-    cv2.drawContours(display, [contour], -1, (255, 0, 255), 3)
-    cv2.rectangle(display, (x, y), (x + width, y + height), (255, 0, 255), 2)
+    center, radius = max(candidates, key=lambda candidate: candidate[1])
+    cv2.circle(display, center, radius, (255, 0, 255), 3)
     cv2.circle(display, center, 4, (255, 255, 255), -1)
     return center, mask
 

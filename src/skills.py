@@ -1,7 +1,6 @@
-#needs the most improvement!
 #improvements made: 
-# - learn how to normalize movements to avoid hardcoding
-# - try movement logic in test first 
+# - normalize movements to avoid hardcoding
+# - explore options for movement logic 
 # - remove extra observation call - imporve latency
 
 import time 
@@ -92,7 +91,6 @@ def smooth_move(robot, target, duration_s=2.0, hz=30):
         robot.send_action(action)
         time.sleep(1 / hz)
 
-
 class PIDController:
     def __init__(
         self,
@@ -136,7 +134,6 @@ class PIDController:
         else:
             dt = max(now - self.previous_time, 1e-6)
             derivative = (error - self.previous_error) / dt
-
         if dt > 0.0:
             self.integral += error * dt
             self.integral = max(
@@ -153,7 +150,6 @@ class PIDController:
         self.previous_error = error
         self.previous_time = now
         return output
-
 
 def calculate_angular_error(robot_head, desired_position, pivot):
     """Return signed shortest angular error from the red marker to the target.
@@ -179,8 +175,8 @@ def calculate_angular_error(robot_head, desired_position, pivot):
     )
     return math.degrees(wrapped_error)
 
-
-def pid_movement(observation, robot_head, desired_position, controller):
+#should lock target for moving! lock go_to_trash method! 
+def pid_movement(observation, robot_head, desired_position, controller, pivot):
     action = joint_positions(observation)
     if robot_head is None or desired_position is None:
         controller.reset()
@@ -189,9 +185,9 @@ def pid_movement(observation, robot_head, desired_position, controller):
     angular_error = calculate_angular_error(
         robot_head,
         desired_position,
-        SHOULDER_PIVOT_PX,
+        pivot,
     )
     pan_delta = controller.update(angular_error)
     action["shoulder_pan.pos"] += pan_delta
-    return action, angular_error, pan_delta
+    return action
 

@@ -7,42 +7,33 @@ from detection.objdetect import (closest_trash, detect_trash, detect_red_head,de
 #voice 
 from voice.command import VoiceListener
 from planner import next_action 
-from skills import (PIDController, pid_movement, smooth_move, increment_resting_position, PIDController, pid_movement)
+from skills import (PIDController, pid_movement, smooth_move, increment_resting_position, PIDController)
 from runpolicy import load_policy, run_policy_for_action
 from safetysupervisor import (decide_mode, filter_action)
 
 from lerobot.robots.so_follower import SO101Follower, SO101FollowerConfig
 from lerobot.cameras.opencv import OpenCVCameraConfig
 
-#move camera details here - camera resolution, fps, etc. 
-#whys to improve: error handling, edge cases, add print statements, what happens when return nothing? 
-#when to error/ try accept, good code writing?, what calls could fail?, try fixing that 
-#do i need helper functions? what helper functions do I need? 
-#imporvements: handle all trash 
-#practice manually looking and testing for bugs and edge casses in code please
-#check inputs and empty cases 
-#constants in one place 
-#dont hardcode variables 
-
-#not empty stuff 
+#to improve: planner state machine, edge cases, error handling, missing cases 
 
 
 #camera set up and variables 
 ROBOT_PORT = "/dev/tty.usbmodem5B415325441"
 ROBOT_ID = "rory"
 
+#values that can be calibrated: 
+
 POLICY_DURATION_S = 15.0 #seconds
-TRASH_DISTANCE_THRESHOLD = 120 #pixels
-HAND_DISTANCE_THRESHOLD = 90 #pixels
+TRASH_DISTANCE_THRESHOLD = 100 #pixels
+HAND_DISTANCE_THRESHOLD = 50 #pixels
+SHOULDER_PIVOT_PX = (90, 440)
 SLOW_FACTOR = 0.5 #fraction of the way to the target
 
-
-# Visual alignment uses angular error around the shoulder-pan pivot.
 # Start with proportional-only control; increase KP gradually if movement is too slow.
-PID_KP = 0.25
+PID_KP = 0.4
 PID_KI = 0.0
 PID_KD = 0.0
-PID_MAX_STEP = 1.5
+PID_MAX_STEP = 10
 PID_DEADBAND_DEG = 3.5
 PID_DIRECTION = 1.0
 
@@ -56,6 +47,7 @@ REST_TARGET = {
 }
 
 def main():
+
     #hand detector 
     mp_hands = mp.solutions.hands
     mp_drawing = mp.solutions.drawing_utils
@@ -81,14 +73,8 @@ def main():
         )
     )
 
-    controller = PIDController(
-                    kp=PID_KP,
-                    ki=PID_KI,
-                    kd=PID_KD,
-                    max_output=PID_MAX_STEP,
-                    deadband=PID_DEADBAND_DEG,
-                    direction=PID_DIRECTION,
-                )
+    #pid controller set up 
+    controller = PIDController(kp=PID_KP, ki=PID_KI, kd=PID_KD, max_output=PID_MAX_STEP, deadband=PID_DEADBAND_DEG, direction=PID_DIRECTION,)
 
     policy, preprocessor, postprocessor, dataset_meta, policy_cfg = load_policy()
     robot.connect() 
@@ -104,6 +90,7 @@ def main():
 
     #start robot position
     smooth_move(robot, REST_TARGET, duration_s=2.0)
+
     print("set up done")
 
     try: 
@@ -123,12 +110,13 @@ def main():
             trash_exists = False
             on_trash = False 
             closest_trash_distance = None
+            locked_target = None
 
             #trash detection used for planner input 
             if trash_xy: 
                 trash_exists = True
                 trash_cords,closest_trash_distance = closest_trash(trash_xy, robot_head_position)
-                #calibrate this distance 
+                #calibrate this distancee 
                 if closest_trash_distance <= TRASH_DISTANCE_THRESHOLD:
                     on_trash = True 
             
@@ -174,6 +162,9 @@ def main():
             robot_action = {} 
 
             if action_name == "trash policy": 
+                #unlock target
+                locked_target = None
+                #reset policy
                 if policy_end_time is None:
                     policy.reset()
                     preprocessor.reset()
@@ -191,14 +182,9 @@ def main():
                     cfg=policy_cfg,
                 )
             elif action_name == "go to trash": 
-                #does this work? 
-                #does planner choose correctly? 
-                robot_action, angular_error, pan_delta = pid_movement(
-                    observation,
-                    robot_head_position,
-                    trash_cords,
-                    controller,
-                )
+                if locked_target is None:
+                    locked_target = trash_cords
+                robot_action= pid_movement(observation, robot_head_position, trash_cords, controller, SHOULDER_PIVOT_PX)
             elif action_name == "reset": 
                 robot_action = increment_resting_position(observation, REST_TARGET)
             #stop and no move both send frozen action
@@ -208,7 +194,18 @@ def main():
                     for joint in robot.action_features
                 }
 
+            #added aditional markers to display for debugging
+            if robot_head_position:
+                cv2.circle(display, robot_head_position, 5, (0, 0, 255), -1)
+            if trash_cords:
+                cv2.circle(display, trash_cords, 5, (0, 255, 0), -1)
+            if closest_hand_distance:
+                cv2.circle(display, closest_hand_distance, 5, (0, 255, 0), -1)
+            if closest_trash_distance:
+                cv2.circle(display, closest_trash_distance, 5, (0, 255, 0), -1)
+
             cv2.imshow("Main running camera", display)
+
             #quit 
             if cv2.waitKey(1) & 0xFF == ord("q"): 
                 break 
@@ -221,7 +218,6 @@ def main():
             sent_action = robot.send_action(filtered_action)
             previous_action = dict(sent_action)
     except KeyboardInterrupt: 
-        #what to put here? 
         print("Exited")
     finally: 
         hands.close()

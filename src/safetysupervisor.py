@@ -1,5 +1,4 @@
 #used chat to help with slowing and stopping funcitons 
-#future improvement: handle chunks not single actions 
 
 def decide_mode(hand_distance, hand_detected, distance_threshold): 
     if hand_detected and hand_distance is not None: 

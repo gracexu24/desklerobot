@@ -65,7 +65,7 @@ https://huggingface.co/Gracexu28/act_desk_trash
 - Harness built to decide robot state and move robot to correct position, closest piece of trash, before running the ACT policy 
 - Listening thread with command queue to be constantly listening for voice commands while not interrupting policies, camera detection, or main logic 
 - Reset position allowed for robot to move towards trash just by rotating one motor which made motion control simpler and allowed for distance measurments using just the one top camera 
-- All robot actions sent to robot in main, other files help with logic, detection, action selection, but the action is always run through the safetysupervisor and sent to the robot in main
+- All robot observation calls and actions sent to robot in main, other files help with logic, detection, action selection, but the action is always run through the safetysupervisor and sent to the robot in main
 - Safety supervisor filters actions before being sent to the robot 
 
 # Resource Links 
@@ -85,5 +85,10 @@ https://huggingface.co/Gracexu28/act_desk_trash
 - Do more tasks such as picking up objects and handing them to the person 
 
 # Things I Tried (and why it failed)
-- YOLO and ArUco markers for trash and robot detection: yolo didn't have a specific classifier for "trash" or "paper" and aruco markers were too small, modified to use color detection within a certain size for trash and a red marker for the robot head 
-- Used PID control by measuring horizontal error: didn't work because robot movmeent was around an axis, measured angular error instead 
+- YOLO for trash detection: pretrained models don't have a useful "trash" / "paper towel" class, so detections were unreliable on the desk. Switched to white color + size filtering for paper towel trash.
+- ArUco markers on the robot head: markers were too small in the top-down camera view and often failed to detect. Switched to a red marker + color detection for the robot head.
+- Raising camera resolution / lowering YOLO confidence: helped a bit, but still not stable enough for the control loop, so color detection stayed.
+- PID on horizontal pixel error (left/right in the image): the arm pans around the shoulder axis, so horizontal error didn't map cleanly to motor commands and the head often overshot or turned the wrong way. Switched to angular error around a calibrated shoulder pivot in the image.
+- Running the ACT policy straight from Hugging Face: downloads / path / version mismatches made inference flaky. Kept a local copy under `models/act_desk_trash`.
+- Aggressive joint targets from the policy or reset moves: LeRobot clamps relative motion (`max_relative_target`) and joint ranges, which looked like the robot "refusing" to move. Had to tune step size / relative limits instead of fighting the clamp.
+- Relying only on the ACT policy to find trash: from arbitrary start poses it was inconsistent. Added the PID "go to trash" harness so the policy starts closer to a known approach.

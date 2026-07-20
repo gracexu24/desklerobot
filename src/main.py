@@ -1,13 +1,13 @@
 import cv2 
 import time 
 import mediapipe as mp
-from ultralytics import YOLO 
+#from ultralytics import YOLO 
 #detection 
 from detection.objdetect import (closest_trash, detect_trash, detect_red_head,detect_human_hands,calc_hand_distance)
 #voice 
 from voice.command import VoiceListener
 from planner import next_action 
-from skills import (PIDController, pid_movement, smooth_move, increment_resting_position, PIDController)
+from skills import (PIDController, pid_movement, smooth_move, increment_resting_position,)
 from runpolicy import load_policy, run_policy_for_action
 from safetysupervisor import (decide_mode, filter_action)
 
@@ -16,13 +16,11 @@ from lerobot.cameras.opencv import OpenCVCameraConfig
 
 #to improve: planner state machine, edge cases, error handling, missing cases 
 
-
 #camera set up and variables 
 ROBOT_PORT = "/dev/tty.usbmodem5B415325441"
 ROBOT_ID = "rory"
 
 #values that can be calibrated: 
-
 POLICY_DURATION_S = 15.0 #seconds
 TRASH_DISTANCE_THRESHOLD = 100 #pixels
 HAND_DISTANCE_THRESHOLD = 50 #pixels
@@ -88,6 +86,8 @@ def main():
     previous_action = None
     policy_end_time = None
 
+    locked_target = None
+
     #start robot position
     smooth_move(robot, REST_TARGET, duration_s=2.0)
 
@@ -110,7 +110,6 @@ def main():
             trash_exists = False
             on_trash = False 
             closest_trash_distance = None
-            locked_target = None
 
             #trash detection used for planner input 
             if trash_xy: 
@@ -184,7 +183,7 @@ def main():
             elif action_name == "go to trash": 
                 if locked_target is None:
                     locked_target = trash_cords
-                robot_action= pid_movement(observation, robot_head_position, trash_cords, controller, SHOULDER_PIVOT_PX)
+                robot_action= pid_movement(observation, robot_head_position, locked_target, controller, SHOULDER_PIVOT_PX)
             elif action_name == "reset": 
                 robot_action = increment_resting_position(observation, REST_TARGET)
             #stop and no move both send frozen action
@@ -199,11 +198,7 @@ def main():
                 cv2.circle(display, robot_head_position, 5, (0, 0, 255), -1)
             if trash_cords:
                 cv2.circle(display, trash_cords, 5, (0, 255, 0), -1)
-            if closest_hand_distance:
-                cv2.circle(display, closest_hand_distance, 5, (0, 255, 0), -1)
-            if closest_trash_distance:
-                cv2.circle(display, closest_trash_distance, 5, (0, 255, 0), -1)
-
+        
             cv2.imshow("Main running camera", display)
 
             #quit 

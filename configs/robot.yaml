@@ -1,32 +1,33 @@
-robot: 
-	type: so101_follower
-	id: rory 
-	port: /dev/tty.usbmodemXXXX
+robot:
+  type: so101_follower
+  id: rory
+  port: /dev/tty.usbmodem5B415325441
 
-teleop: 
-	type: so101_leader
-	id: lorelai
-	port: /dev/tty.usbmodemYYYY
+teleop:
+  type: so101_leader
+  id: lorelai
+  port: /dev/tty.usbmodem5B415332981
 
-camera1:: 
-	index: 0 
-	width: 0
-	height: 0
-	port: 0 
+camera:
+  name: front
+  type: opencv
+  index_or_path: 0
+  width: 640
+  height: 480
+  fps: 30
 
-policy: 
-	type: act 
-	path: 
+policy:
+  type: act
+  path: models/act_desk_trash
+  repo_id: Gracexu28/act_desk_trash
+  task: Pick up the trash and put it in trash can
 
-	type: act 
-	path: 
+dataset:
+  repo_id: Gracexu28/so101_desk_trash
+  merged_repo_id: Gracexu28/so101_desk_trash_merged
+  num_episodes: 60
+  episode_time_s: 30
+  reset_time_s: 10
+  task: Pick up the trash and put it in trash can
 
-dataset: 
-	repo_id: 
-	num_episodes: 
-	task: Pick up trash and place it in the bin 
-
-	repo_id:
-	num_episodes: 
-	task: Pick up pen and place it in hand 
-  
+hf_user: Gracexu28

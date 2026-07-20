@@ -180,7 +180,7 @@ def pid_movement(observation, robot_head, desired_position, controller, pivot):
     action = joint_positions(observation)
     if robot_head is None or desired_position is None:
         controller.reset()
-        return action, None, 0.0
+        return action
 
     angular_error = calculate_angular_error(
         robot_head,

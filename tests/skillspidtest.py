@@ -417,6 +417,7 @@ def main():
                 robot_action,
                 observation,
                 safety_mode,
+                0.5,
                 previous_action,
             )
             sent_action = robot.send_action(filtered_action)

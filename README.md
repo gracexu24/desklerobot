@@ -1,4 +1,7 @@
 # deskbot
+
+![Desk bot picking up trash](media/cover.jpg)
+
 I built an so101 leader and follower arm to do simple pick and place tasks. I wanted to expand the project into something more usable and interesting. I'm curious about human robot interaction and building robots that work with humans, so I decided to build this desk bot to work on my desk with me and do tasks such as cleaning it up. 
 
 # Demo
@@ -7,27 +10,27 @@ I built an so101 leader and follower arm to do simple pick and place tasks. I wa
 
 <video src="media/basic.mp4" controls width="720"></video>
 
-[Watch basic.mp4](media/basic.mp4)
+[basic.mp4](media/basic.mp4)
 
 **Multiple pieces of trash** — Robot handles closes piece of trah 
 
 <video src="media/multiple_trash.mp4" controls width="720"></video>
 
-[Watch multiple_trash.mp4](media/multiple_trash.mp4)
+[multiple_trash.mp4](media/multiple_trash.mp4)
 
 **Stop** — Robot stops when a hand is too close, and also from voice commands
 
 <video src="media/stop.mp4" controls width="720"></video>
 
-[Watch stop.mp4](media/stop.mp4)
+[stop.mp4](media/stop.mp4)
 
 # Project Set Up 
-- so101 arm attatched to table 
-- top camera input  
-- lerobot library 
-- paper towel "trash"  
-- bowl for "trashcan" 
-- voice commands: "pick up trash", "stop", "reset" 
+- So101 arm attatched to table 
+- Top camera input  
+- Lerobot library 
+- Paper towel "trash"  
+- Bowl for "trashcan" 
+- Voice commands: "pick up trash", "stop", "reset" 
 
 # Install 
 brew install portaudio 

@@ -23,7 +23,7 @@ ROBOT_ID = "rory"
 #values that can be calibrated: 
 POLICY_DURATION_S = 15.0 #seconds
 TRASH_DISTANCE_THRESHOLD = 100 #pixels
-HAND_DISTANCE_THRESHOLD = 50 #pixels
+HAND_DISTANCE_THRESHOLD = 30 #pixels
 SHOULDER_PIVOT_PX = (90, 440)
 SLOW_FACTOR = 0.5 #fraction of the way to the target
 
@@ -194,10 +194,10 @@ def main():
                 }
 
             #added aditional markers to display for debugging
-            if robot_head_position:
-                cv2.circle(display, robot_head_position, 5, (0, 0, 255), -1)
-            if trash_cords:
-                cv2.circle(display, trash_cords, 5, (0, 255, 0), -1)
+            #if robot_head_position:
+            #    cv2.circle(display, robot_head_position, 5, (0, 0, 255), -1)
+            #if trash_cords:
+            #    cv2.circle(display, trash_cords, 5, (0, 255, 0), -1)
         
             cv2.imshow("Main running camera", display)
 

@@ -11,8 +11,8 @@ RED_MIN_VALUE = 70
 #white detection values  
 WHITE_MAX_SATURATION = 160
 WHITE_MIN_VALUE = 90
-MIN_WHITE_SIZE_PX = 50
-MAX_WHITE_SIZE_PX = 100
+MIN_WHITE_SIZE_PX = 40
+MAX_WHITE_SIZE_PX = 90
 
 # (0, 0) is the top-left corner  
 

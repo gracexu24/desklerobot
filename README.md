@@ -41,12 +41,12 @@ pip install -r requirements.txt
 - all other code written by hand to learn and practice unless marked by a comment  
 
 # Notable Features
-Main control loop: voice → action planner → PID align to closest piece of trash -> ACT pick-place → safety filter action → send action 
+Main control loop: voice → action planner → align to closest piece of trash -> ACT pick-place → safety filter action → send action 
 - Voice input for robot control 
 - Saftey supervisior so the robot slows when human is present and stops if a person's hands are too close 
 - Detection and trained policy so the robot can handle multiple pieces of trash 
 - Computer vision for detection of trash, human hand, and robot and calcuation of distance 
-- PID control for movement of robot head
+- Proportional control for movement of robot head
 - Individual test scripts for debugging and feature calibration and testing  
 - Planner that decides robot actions 
 - ACT policy trained from scratch that controls trash picking up and disposal 
@@ -124,5 +124,5 @@ https://huggingface.co/Gracexu28/act_desk_trash
 - PID on horizontal pixel error (left/right in the image): the arm pans around the shoulder axis, so horizontal error didn't map cleanly to motor commands and the head often overshot or turned the wrong way. Switched to angular error around a calibrated shoulder pivot in the image.
 - Running the ACT policy straight from Hugging Face: downloads / path / version mismatches made inference flaky. Kept a local copy under `models/act_desk_trash`.
 - Aggressive joint targets from the policy or reset moves: LeRobot clamps relative motion (`max_relative_target`) and joint ranges, which looked like the robot "refusing" to move. Had to tune step size / relative limits instead of fighting the clamp.
-- Relying only on the ACT policy to find trash: from arbitrary start poses it was inconsistent. Added the PID "go to trash" harness so the policy starts closer to a known approach.
+- Relying only on the ACT policy to find trash: from arbitrary start poses it was inconsistent. Added the "go to trash" harness so the policy starts closer to a known approach.
 - Picking up and handing a pen: the data recording kept failing so I ommited this due to time limitations but is a future expansion I hope to add
